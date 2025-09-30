@@ -1,78 +1,58 @@
 package com.tarefas.pessoais.gerenciador_tarefas.controller;
 
-import java.util.List;
-
+import com.tarefas.pessoais.gerenciador_tarefas.model.Tarefa;
+import com.tarefas.pessoais.gerenciador_tarefas.service.TarefaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import com.tarefas.pessoais.gerenciador_tarefas.model.Tarefa;
-import com.tarefas.pessoais.gerenciador_tarefas.repository.TarefaRepository;
-
-import jakarta.validation.Valid;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import jakarta.validation.Valid;
 
 @RestController 
-@RequestMapping("/api/tarefas") 
+@RequestMapping("/api/v1/tarefas")
 public class TarefaController {
 
     @Autowired
-    private TarefaRepository repository;
+    private TarefaService service;
 
     @PostMapping
     public ResponseEntity<Tarefa> criarTarefa(@Valid @RequestBody Tarefa novaTarefa) {
-           
-        Tarefa tarefaSalva = repository.save(novaTarefa);
+        Tarefa tarefaSalva = service.salvar(novaTarefa);
         return ResponseEntity.status(HttpStatus.CREATED).body(tarefaSalva);
     }
     
     @GetMapping
     public List<Tarefa> listarTodas() {
-        return repository.findAll();
+        return service.listarTodas();
     }
     
     @GetMapping("/{id}")
-     public ResponseEntity<Object> buscarPorId(@PathVariable Long id) { 
-        return repository.findById(id)
-                .map(tarefa -> ResponseEntity.ok((Object)tarefa)) 
-                .orElse(
-                    ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                        Map.of("mensagem", "Tarefa com o ID " + id + " não foi encontrada.")
-                    )
-                );
+    public ResponseEntity<?> buscarPorId(@PathVariable Long id) { 
+        return service.buscarPorId(id)
+            .map(tarefa -> ResponseEntity.ok((Object)tarefa)) 
+            .orElse(
+                ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                    Map.of("mensagem", "Tarefa com o ID " + id + " não foi encontrada.")
+                )
+            );
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Tarefa> atualizarTarefa(@PathVariable Long id, @RequestBody Tarefa tarefaDetalhes) {
-        return repository.findById(id)
-            .map(tarefaExistente -> {
-                tarefaExistente.setTitulo(tarefaDetalhes.getTitulo());
-                tarefaExistente.setDescricao(tarefaDetalhes.getDescricao());
-                tarefaExistente.setConcluida(tarefaDetalhes.isConcluida());
-                tarefaExistente.setCategoria(tarefaDetalhes.getCategoria());
-                
-                Tarefa atualizada = repository.save(tarefaExistente);
-                return ResponseEntity.ok(atualizada);
-            })
+        return service.atualizar(id, tarefaDetalhes)
+            .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletarTarefa(@PathVariable Long id) {
-        return repository.findById(id)
-            .map(tarefa -> {
-                repository.delete(tarefa);
-                return ResponseEntity.noContent().<Void>build(); 
-            })
-            .orElse(ResponseEntity.notFound().build());
+        if (service.deletar(id)) {
+            return ResponseEntity.noContent().build();
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 }
